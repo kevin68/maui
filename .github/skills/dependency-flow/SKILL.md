@@ -381,6 +381,78 @@ Exemplar: [PR 61033](https://dev.azure.com/dnceng/internal/_git/maestro-configur
 
 When standing up a new preview, **confirm the new preview's subs are in place before removing the old preview's** to avoid a flow gap.
 
+## Preview release readiness (authoritative source + access tiers)
+
+Use this when asked things like *"is .NET MAUI Preview N release-ready?"*, *"which
+build is the official Preview N?"*, or *"are we good to ship Preview N?"* **while
+assessing a preview** (not GA or servicing).
+
+**Why a special source:** the build that releases.dot.net has *blessed* as the
+official preview is designated in an internal **.NET Release Tracker** plugin.
+Public BAR/Maestro data can enumerate candidate builds but **cannot, on its own,
+tell you which staged build is the blessed one**. This is exactly the trap from
+[PR #35364](https://github.com/dotnet/maui/pull/35364) / the Preview 6 cycle: two
+same-band VMR builds (e.g. `…26325.125` vs `…26326.122`) look interchangeable
+until you know which BAR id the release designates.
+
+The plugin lives in a **private** marketplace repo and is **double-gated** — you
+need (1) GitHub read access to that repo to load it, and (2) an authorized Azure
+AD identity for it to return data. So referencing it from this public repo is
+safe: a user without access simply can't load it or pull embargoed data.
+
+### Step 1 — classify access (deterministic)
+
+```bash
+pwsh ./.github/skills/dependency-flow/scripts/Get-PreviewReleaseReadiness.ps1
+# -> RELEASE_TRACKER_STATUS=NO_ACCESS | AVAILABLE_NOT_ENABLED | AVAILABLE_ENABLED
+```
+
+The script only *classifies* the environment (GitHub read access + whether the
+plugin is locally enabled). It fetches **no** release data and always exits 0.
+
+### Step 2 — branch on the status token
+
+| `RELEASE_TRACKER_STATUS` | What it means | What to do |
+|--------------------------|---------------|------------|
+| `AVAILABLE_ENABLED` | Caller has access **and** the `dotnet-release-tracker` plugin is enabled | Invoke the `dotnet-release-tracker` skill directly for the authoritative blessed-build / BAR id, then cross-reference with BAR/Maestro for asset/feed details. |
+| `AVAILABLE_NOT_ENABLED` | Caller has access but the plugin is **not** enabled locally | Tell the user they have access and offer the **user-scope opt-in** below. After they opt in and reload, re-run Step 1 → `AVAILABLE_ENABLED`. |
+| `NO_ACCESS` | Access can't be confirmed (no access, or `gh` missing/unauthenticated) | **Silently** fall back to PUBLIC data only (BAR/Maestro + dotnet/core release metadata). **Do not** mention the private plugin or imply the user is missing anything — see privacy guardrail. |
+
+### User-scope opt-in (Tier B) — do NOT commit this
+
+Add to the user's **personal** `~/.copilot/settings.json` (merge with existing
+keys; this is intentionally *not* committed to the repo so forks and no-access
+users are unaffected):
+
+```jsonc
+{
+  "extraKnownMarketplaces": {
+    "dotnet-release": { "source": { "source": "github", "repo": "dotnet/release" } }
+  },
+  "enabledPlugins": {
+    "dotnet-release-tracker@dotnet-release": true
+  }
+}
+```
+
+Then reload extensions (or restart the session) so the plugin loads.
+
+### 🛡️ Guardrails
+
+- **Privacy default:** when the status is `NO_ACCESS`, behave as if the private
+  plugin does not exist — answer from public data and never reveal, hint at, or
+  apologize for the internal source. The gate script enforces this by treating
+  *any* unconfirmed-access case as `NO_ACCESS`.
+- **Never** copy internal coordinates (Azure AD resource IDs / `api://…`
+  audiences, backend service hostnames, internal endpoint paths) from the plugin
+  into this public repo. The only sanctioned reference is the *marketplace
+  pointer* (repo name + plugin name) used above.
+- **No fetch-and-exec.** Do not download and run remote scripts to obtain release
+  data; use the installed plugin through normal skill invocation.
+- **Honest limitation:** on the public fallback path you can list candidate builds
+  and their BAR ids, but you cannot definitively state which one is the *blessed*
+  official preview. Say so rather than guessing.
+
 ## Quick reference: lifecycle commands by phase
 
 | Phase | Action | Command sketch |
