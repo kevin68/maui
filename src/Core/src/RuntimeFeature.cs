@@ -29,7 +29,6 @@ namespace Microsoft.Maui
 		const bool EnableAspireByDefault = true;
 		const bool IsMaterial3EnabledByDefault = false;
 		const bool IsCssEnabledByDefault = true;
-		const bool IsUseiOSTabbedViewHandlerEnabledByDefault = false;
 
 #pragma warning disable IL4000 // Return value does not match FeatureGuardAttribute 'System.Diagnostics.CodeAnalysis.RequiresUnreferencedCodeAttribute'. 
 #if NET9_0_OR_GREATER
@@ -168,12 +167,5 @@ namespace Microsoft.Maui
 				? isEnabled
 				: IsCssEnabledByDefault;
 
-#if NET11_0_OR_GREATER
-		[FeatureSwitchDefinition($"{FeatureSwitchPrefix}.{nameof(UseiOSTabbedViewHandler)}")]
-#endif
-		public static bool UseiOSTabbedViewHandler =>
-			AppContext.TryGetSwitch($"{FeatureSwitchPrefix}.{nameof(UseiOSTabbedViewHandler)}", out bool isEnabled)
-				? isEnabled
-				: IsUseiOSTabbedViewHandlerEnabledByDefault;
 	}
 }

@@ -380,10 +380,6 @@
                                       Condition="'$(UseMaterial3)' != ''"
                                       Value="$(UseMaterial3)"
                                       Trim="true" />
-      <RuntimeHostConfigurationOption Include="Microsoft.Maui.RuntimeFeature.UseiOSTabbedViewHandler"
-                                      Condition="'$(UseiOSTabbedViewHandler)' != ''"
-                                      Value="$(UseiOSTabbedViewHandler)"
-                                      Trim="true" />
     </ItemGroup>
   </Target>
 
